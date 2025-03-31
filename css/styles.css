@@ -27,6 +27,8 @@
     --datrep-body-odd-color: rgb(233, 236, 239);
     --loader-font-color: rgb(51, 51, 51);
     --error-message: rgb(255, 155, 155);
+
+    --progress-bar-color: rgb(36, 36, 163);
 }
 
 .page-content.blur {
@@ -63,6 +65,8 @@
     --datrep-body-odd-color: rgb(107, 108, 109);
     --loader-font-color: rgb(172, 172, 172);
     --error-message: rgb(255, 50, 50);
+
+    --progress-bar-color: rgb(85, 85, 250);
 }
 
 .header {
@@ -346,6 +350,11 @@
     gap: 1em;
 }
 
+#settings-div .statistic-plot-control .sub-div {
+    display: flex;
+    gap: 0em;
+}
+
 /* ========== OTHER CHECKBOX =============*/
 #settings-div .select-data-plot input {
     cursor: pointer;
@@ -409,6 +418,48 @@
 #settings-div .space-between {
     width: 100%;
     height: 2em;
+}
+
+/* ========== PROGRESS BAR ================*/
+#progress-bar-div.hidden {
+    display: none;
+}
+
+#progress-bar-div {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    gap: 1em;
+    margin-top: 0;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    padding: 5em 20em;
+}
+
+#progress-bar {
+    width: 100%; 
+    background: #ccc; 
+    border: 0.25em solid black;
+    height: 1.75em;
+    border-radius: 0.5em;
+}
+
+#progress {
+    width: 0%; 
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: var(--progress-bar-color); 
+    border-radius: 0.25em;
+    height: 100%;
+    font-weight: bold;
+    color: #fff;
+}
+
+#progress-bar-div .progress-bar-text{
+    font-size: 1.2em;
+    font-weight: bold;
 }
 
 /* =============== PLOT ==================*/

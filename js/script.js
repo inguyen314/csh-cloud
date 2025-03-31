@@ -6,13 +6,9 @@ import {
     formatString,
     getList,
     getMeanMinMaxList,
-    extractDataForTable,
-    createTable,
-    clearTable,
     haveOneYearOfData,
     blurBackground,
     popupMessage,
-    showLoading,
     loadingPageData
 } from './functions.js'
 
@@ -29,10 +25,13 @@ const appMetadata = {
     }
 }
 
+//============== GLOBAL VARIABLES =======================//
+let isMaintenance = false; // Manually set up Maintenance
 
 // Const Elements
 const basinName = document.getElementById('basinCombobox'),
       gageName = document.getElementById('gageCombobox'),
+      officeName = document.getElementById('officeCombobox'),
       beginDate = document.getElementById('begin-input'),
       endDate = document.getElementById('end-input'),
       PORBeginDate = document.querySelector('#info-table .por-start'),
@@ -70,6 +69,7 @@ const basinName = document.getElementById('basinCombobox'),
       statisticAverageCheckbox = document.getElementById('mean-checkbox'),
       statisticMeanCheckbox = document.getElementById('average-checkbox'),
       statisticMaxMinCheckbox = document.getElementById('max-min-checkbox'),
+      minMaxShaderCheckbox = document.getElementById('shade-checkbox'),
       yearPlotDiv = document.querySelector('#settings-div .select-data-plot'),
       subSeparator1 = document.getElementById('sub-separator-1'),
       subSeparator2 = document.getElementById('sub-separator-2'),
@@ -92,17 +92,16 @@ const basinName = document.getElementById('basinCombobox'),
       outflowTimeSerieDiv = document.getElementById('outflow-time-serie-name-div'),
       outflowTimeSerieText = document.querySelector('#outflow-time-serie-name-div h2'),
       printBtn3Div = document.getElementById('print-btn-3-div'),
-      printBtn3= document.getElementById('print-btn-3');
+      printBtn3= document.getElementById('print-btn-3'),
+      progressBar = document.getElementById('progress'),
+      progressBarDiv = document.getElementById('progress-bar-div'),
+      progressBarText = document.querySelector('#progress-bar-div .progress-bar-text');;
 
 
 let params = new URLSearchParams(window.location.search);
-const officeName = params.get("office") ? params.get("office").toUpperCase() : "MVS";
 const cda = params.get("cda") ? params.get("cda") : "internal";
 const conlog = params.get("conlog") ? params.get("conlog") : "false";
 let isDeveloper = params.get("developer") ? params.get("developer").toLowerCase() : null;
-
-// Manually set up Maintenance
-let isMaintenance = false;
 
 if (isDeveloper === "true"){
     isMaintenance = false;
@@ -114,6 +113,10 @@ const consoleLog = conlog === "true" ? true : false;
 let globalDatman = null;
 let globalDatmanInflow = null;
 let globalDatmanOutflow = null;
+let office;
+let globalCounter;
+let globalTotalCounter;
+let sleepTime = 250;
 
 if (isMaintenance){
 
@@ -131,14 +134,95 @@ if (isMaintenance){
     //     darkModeCheckbox.checked = userData.darkMode;
     // }
 
-    try{
-        document.addEventListener('DOMContentLoaded', async function () {
+}
 
-            inputsDisableAndEnable();
+
+// Add function to popup window button
+popupWindowBtn.addEventListener('click', blurBackground);
+
+//loadingPageData();
+
+initialize();
+
+/**============= Main functions when data is retrieved ================**/
+// Initilize page
+function initialize() {
+
+    // Add dark mode functionality
+    darkModeCheckbox.addEventListener('click', function() {
+        document.getElementById('content-body').classList.toggle('dark');
+        document.getElementById('page-container').classList.toggle('dark');
+    });
+
+    instructionsBtn.addEventListener('click', function(){
+        instructionsDiv.classList.toggle('hidden');
+    });
+
+    // Add print Function
+    printBtn.addEventListener('click', function() { printPlot('plot') });
+    printBtn2.addEventListener('click', function() { printPlot('plot-2') });
+    printBtn3.addEventListener('click', function() { printPlot('plot-3') });
+
+    let offices = [
+        "MVS", "CERL", "CHL",  "CPC",  "CRREL","CWMS", "EL",   "ERD",  "GSL",  "HEC",
+        "HQ",   "ITL",  "IWR",  "LCRA", "LRB",  "LRC",  "LRD",  "LRDG", "LRDO",
+        "LRE",  "LRH",  "LRL",  "LRN",  "LRP",  "MVD",  "MVK",  "MVM",  "MVN",
+        "MVP",  "MVR",  "MVS",  "NAB",  "NAD",  "NAE",  "NAN",  "NAO",  "NAP",
+        "NDC",  "NWD",  "NWDM", "NWDP", "NWK",  "NWO",  "NWP",  "NWS",  "NWW",
+        "POA",  "POD",  "POH",  "SAC",  "SAD",  "SAJ",  "SAM",  "SAS",  "SAW",
+        "SPA",  "SPD",  "SPK",  "SPL",  "SPN",  "SWD",  "SWF",  "SWG",  "SWL",
+        "SWT",  "TEC",  "WCSC", "WPC"
+    ]
+
+    // Add office name to dropdown list
+    offices.forEach((item) => {
+        let option = document.createElement('option');
+
+        option.value = item;
+        option.textContent = item;
+
+        officeName.append(option);
+    });  
+
+    let selectOfficeOption = document.createElement('option');
+    selectOfficeOption.value = "Select Office";
+    selectOfficeOption.text = "Select Office";
+
+    officeName.insertBefore(selectOfficeOption, officeName.firstChild);
+    officeName.selectedIndex = 0;  
+    
+    // for (let i = 0; i < officeName.options.length; i++){
+    //     let currentOption = officeName.options[i]
+    //     if (currentOption.value === "MVS"){
+    //         officeName.selectedIndex = i;
+    //     }
+    // }  
+
+    gageName.disabled = true;
+    basinName.disabled = true;
+
+    // GET ALL DATA FOR THE SELECTED OFFICE
+    officeName.addEventListener('change', async function() {
+
+        try{
+
+            loadingPageData();
+
+            if (!haveClass(errorMessageDiv, 'hidden')){
+                errorMessageDiv.classList.add('hidden');
+            }
+
+            // Disable all elements
+            basinName.disabled = true;
+            gageName.disabled = true;
+            beginDate.disabled = true;
+            endDate.disabled = true;
+            plotCSHBtn.disabled = true;
         
             let setCategory = "Basins"; 
-        
-            //let office = "MVS";
+
+            office = officeName.value;
+
             //let type = "no idea";
         
             // Get the current date and time, and compute a "look-back" time for historical data
@@ -147,13 +231,15 @@ if (isMaintenance){
         
             let setBaseUrl = null;
             if (cda === "internal") {
-                setBaseUrl = `https://coe-${officeName.toLowerCase()}uwa04${officeName.toLowerCase()}.${officeName.toLowerCase()}.usace.army.mil:8243/${officeName.toLowerCase()}-data/`;
+                setBaseUrl = `https://coe-${office.toLowerCase()}uwa04${office.toLowerCase()}.${office.toLowerCase()}.usace.army.mil:8243/${office.toLowerCase()}-data/`;
             } else if (cda === "public") {
                 setBaseUrl = `https://cwms-data.usace.army.mil/cwms-data/`;
             }
         
             // Define the URL to fetch location groups based on category
-            const categoryApiUrl = setBaseUrl + `location/group?office=${officeName}&include-assigned=false&location-category-like=${setCategory}`;
+            // const categoryApiUrl = setBaseUrl + `location/group?office=${office}&include-assigned=false&location-category-like=${setCategory}`;
+            const categoryApiUrl = setBaseUrl + `location/group?office=${office}&group-office-id=${office}&category-office-id=${office}&category-id=${setCategory}`;
+
         
             // Initialize maps to store metadata and time-series ID (TSID) data for various parameters
             const metadataMap = new Map();
@@ -188,7 +274,7 @@ if (isMaintenance){
                     }
         
                     // Filter and map the returned data to basins belonging to the target category
-                    const targetCategory = { "office-id": officeName, "id": setCategory };
+                    const targetCategory = { "office-id": office, "id": setCategory };
                     const filteredArray = filterByLocationCategory(data, targetCategory);
                     const basins = filteredArray.map(item => item.id);
         
@@ -203,7 +289,7 @@ if (isMaintenance){
         
                     // Loop through each basin and fetch data for its assigned locations
                     basins.forEach(basin => {
-                        const basinApiUrl = setBaseUrl + `location/group/${basin}?office=${officeName}&category-id=${setCategory}`;
+                        const basinApiUrl = setBaseUrl + `location/group/${basin}?office=${office}&category-id=${setCategory}`;
         
                         apiPromises.push(
                             fetch(basinApiUrl)
@@ -232,7 +318,7 @@ if (isMaintenance){
                                             // console.log(loc['location-id']);
         
                                             // Fetch metadata for each location
-                                            const locApiUrl = setBaseUrl + `locations/${loc['location-id']}?office=${officeName}`;
+                                            const locApiUrl = setBaseUrl + `locations/${loc['location-id']}?office=${office}`;
                                             // console.log("locApiUrl: ", locApiUrl);
                                             metadataPromises.push(
                                                 fetch(locApiUrl)
@@ -255,7 +341,7 @@ if (isMaintenance){
                                             );
         
                                             // Fetch owner for each location
-                                            let ownerApiUrl = setBaseUrl + `location/group/Datman?office=${officeName}&category-id=${officeName}`;
+                                            let ownerApiUrl = setBaseUrl + `location/group/Datman?office=${office}&category-id=${office}`;
                                             if (ownerApiUrl) {
                                                 ownerPromises.push(
                                                     fetch(ownerApiUrl)
@@ -281,7 +367,7 @@ if (isMaintenance){
                                             }
         
                                             // Fetch project for each location
-                                            let projectApiUrl = setBaseUrl + `location/group/Project?office=${officeName}&category-id=${officeName}`;
+                                            let projectApiUrl = setBaseUrl + `location/group/Project?office=${office}&category-id=${office}`;
                                             if (projectApiUrl) {
                                                 projectPromises.push(
                                                     fetch(projectApiUrl)
@@ -308,7 +394,7 @@ if (isMaintenance){
         
         
                                             // Fetch datman TSID data
-                                            const tsidDatmanApiUrl = setBaseUrl + `timeseries/group/Datman?office=${officeName}&category-id=${loc['location-id']}`;
+                                            const tsidDatmanApiUrl = setBaseUrl + `timeseries/group/Datman?office=${office}&category-id=${loc['location-id']}`;
                                             // console.log('tsidDatmanApiUrl:', tsidDatmanApiUrl);
                                             datmanTsidPromises.push(
                                                 fetch(tsidDatmanApiUrl)
@@ -329,7 +415,7 @@ if (isMaintenance){
                                             );
         
                                             // Fetch Inflow TSID data
-                                            const tsidDatmanInflowApiUrl = setBaseUrl + `timeseries/group/Datman-Inflow?office=${officeName}&category-id=${loc['location-id']}`;
+                                            const tsidDatmanInflowApiUrl = setBaseUrl + `timeseries/group/Datman-Inflow?office=${office}&category-id=${loc['location-id']}`;
                                             // console.log('tsidDatmanInflowApiUrl:', tsidDatmanInflowApiUrl);
                                             datmanInflowTsidPromises.push(
                                                 fetch(tsidDatmanInflowApiUrl)
@@ -350,7 +436,7 @@ if (isMaintenance){
                                             );
         
                                             // Fetch Outflow TSID data
-                                            const tsidDatmanOutflowApiUrl = setBaseUrl + `timeseries/group/Datman-Outflow?office=${officeName}&category-id=${loc['location-id']}`;
+                                            const tsidDatmanOutflowApiUrl = setBaseUrl + `timeseries/group/Datman-Outflow?office=${office}&category-id=${loc['location-id']}`;
                                             // console.log('tsidDatmanInflowApiUrl:', tsidDatmanInflowApiUrl);
                                             datmanOutflowTsidPromises.push(
                                                 fetch(tsidDatmanOutflowApiUrl)
@@ -371,7 +457,7 @@ if (isMaintenance){
                                             );
         
                                             // Fetch stage TSID data
-                                            const tsidStageApiUrl = setBaseUrl + `timeseries/group/Stage?office=${officeName}&category-id=${loc['location-id']}`;
+                                            const tsidStageApiUrl = setBaseUrl + `timeseries/group/Stage?office=${office}&category-id=${loc['location-id']}`;
                                             // console.log('tsidStageApiUrl:', tsidStageApiUrl);
                                             stageTsidPromises.push(
                                                 fetch(tsidStageApiUrl)
@@ -492,8 +578,8 @@ if (isMaintenance){
                                     const timeSeriesDataFetchPromises = (timeSeries, type) => {
                                         return timeSeries.map((series, index) => {
                                             const tsid = series['timeseries-id'];
-                                            const timeSeriesDataApiUrl = setBaseUrl + `timeseries?name=${tsid}&begin=${lookBackHours.toISOString()}&end=${currentDateTime.toISOString()}&office=${officeName}`;
-                                           
+                                            const timeSeriesDataApiUrl = setBaseUrl + `timeseries?name=${tsid}&begin=${lookBackHours.toISOString()}&end=${currentDateTime.toISOString()}&office=${office}`;
+                                            
         
                                             return fetch(timeSeriesDataApiUrl, {
                                                 method: 'GET',
@@ -593,7 +679,7 @@ if (isMaintenance){
         
                                     // Additional API call for extents data
                                     const timeSeriesDataExtentsApiCall = (type) => {
-                                        const extentsApiUrl = setBaseUrl + `catalog/TIMESERIES?page-size=5000&office=${officeName}`;
+                                        const extentsApiUrl = setBaseUrl + `catalog/TIMESERIES?page-size=5000&office=${office}`;
         
                                         return fetch(extentsApiUrl, {
                                             method: 'GET',
@@ -664,11 +750,11 @@ if (isMaintenance){
         
                         })
                         .then(() => {
-         
+            
                             // Step 1: Filter out locations where 'attribute' ends with '.1'
                             combinedData.forEach((dataObj, index) => {
                                 // console.log(`Processing dataObj at index ${index}:`, dataObj['assigned-locations']);
-         
+            
                                 // Filter out locations with 'attribute' ending in '.1'
                                 dataObj['assigned-locations'] = dataObj['assigned-locations'].filter(location => {
                                     const attribute = location['attribute'].toString();
@@ -678,25 +764,25 @@ if (isMaintenance){
                                     }
                                     return true; // Keep the location
                                 });
-         
+            
                                 // console.log(`Updated assigned-locations for index ${index}:`, dataObj['assigned-locations']);
                             });
-         
-         
+            
+            
                             // Step 2: Filter out locations where 'location-id' doesn't match owner's 'assigned-locations'
                             combinedData.forEach(dataGroup => {
                                 // Iterate over each assigned-location in the dataGroup
                                 let locations = dataGroup['assigned-locations'];
-         
+            
                                 // Loop through the locations array in reverse to safely remove items
                                 for (let i = locations.length - 1; i >= 0; i--) {
                                     let location = locations[i];
-         
+            
                                     // Find if the current location-id exists in owner's assigned-locations
                                     let matchingOwnerLocation = location['owner']['assigned-locations'].some(ownerLoc => {
                                         return ownerLoc['location-id'] === location['location-id'];
                                     });
-         
+            
                                     // If no match, remove the location
                                     if (!matchingOwnerLocation) {
                                         locations.splice(i, 1);
@@ -705,7 +791,7 @@ if (isMaintenance){
                             });
         
                             //loadingIndicator.style.display = 'none';
-                            initialize(combinedData);
+                            getDataToInitialize(combinedData);
         
         // =======================================================================================================================================
                         })
@@ -718,8 +804,62 @@ if (isMaintenance){
                 .catch(error => {
                     console.error('There was a problem with the initial fetch operation:', error);
                     //loadingIndicator.style.display = 'none';
-                    popupMessage("error", "There was an error retrieving the data.<br>See the console log for more information.");
-                    popupWindowBtn.click();
+                    // popupMessage("error", "There was an error retrieving the data.<br>See the console log for more information.");
+                    // popupWindowBtn.click();
+
+                    if (haveClass(errorMessageDiv, 'hidden')){
+                        errorMessageDiv.classList.remove('hidden');
+                    }
+
+                    errorMessageText.innerHTML = `There was a problem with the initial fetch operation: <strong>${error}</strong>`;
+
+                    if (!haveClass(settingsDiv, 'hidden')){
+                        settingsDiv.classList.add('hidden');
+                    };
+        
+                    if (!haveClass(separatorDiv, 'hidden')){
+                        separatorDiv.classList.add('hidden');
+                    };
+
+                    if (!haveClass(plotDiv, 'hidden')){
+                        plotDiv.classList.add('hidden');
+                    };
+
+                    if (!haveClass(plotDiv2, 'hidden')){
+                        plotDiv2.classList.add('hidden');
+                    };
+
+                    if (!haveClass(plotDiv3, 'hidden')){
+                        plotDiv3.classList.add('hidden');
+                    };
+
+                    if (!haveClass(printBtnDiv, 'hidden')){
+                        printBtnDiv.classList.add('hidden');
+                    };
+
+                    if (!haveClass(printBtn2Div, 'hidden')){
+                        printBtn2Div.classList.add('hidden');
+                    };
+
+                    if (!haveClass(printBtn3Div, 'hidden')){
+                        printBtn3Div.classList.add('hidden');
+                    };
+
+                    if (!haveClass(timeSerieDiv, 'hidden')){
+                        timeSerieDiv.classList.add('hidden');
+                    };
+
+                    if (!haveClass(inflowTimeSerieDiv, 'hidden')){
+                        inflowTimeSerieDiv.classList.add('hidden');
+                    };
+
+                    if (!haveClass(outflowTimeSerieDiv, 'hidden')){
+                        outflowTimeSerieDiv.classList.add('hidden');
+                    };
+
+                    basinName.innerHTML = "";
+                    gageName.innerHTML = "";
+
                     loadingPageData();
                 });
         
@@ -1289,48 +1429,23 @@ if (isMaintenance){
                     table.appendChild(dataRow);
                 }
             }
-        });
-
-    } catch (error){
-        console.error(error);
-        errorMessageDiv.classList.add('show');
-        loadingDiv.classList.remove('show');
-    }
-
+        
+        } catch (err) {
+            console.log("There was an error getting the data.\nError: ", err);
+        }
+    });
+    
 }
 
-
-// Add function to popup window button
-popupWindowBtn.addEventListener('click', blurBackground);
-
-loadingPageData();
-
-/**============= Main functions when data is retrieved ================**/
-// Initilize page
-function initialize(data) {
+function getDataToInitialize(data) {
 
     consoleLog ? console.log("Initialize Data: ", data) : null;
 
-    // Add dark mode functionality
-    darkModeCheckbox.addEventListener('click', function() {
-        document.getElementById('content-body').classList.toggle('dark');
-        document.getElementById('page-container').classList.toggle('dark');
-    });
-
-    // Add print Function
-    printBtn.addEventListener('click', function() { printPlot('plot') });
-    printBtn2.addEventListener('click', function() { printPlot('plot-2') });
-    printBtn3.addEventListener('click', function() { printPlot('plot-3') });
-
     // Extract the names of the basins with the list of gages
-    let namesObject = getNames(data);
+    let namesObject = getNames(data); 
 
     // Add the basins names to the basin combobox
     addBasinNames(basinName, namesObject);
-
-    instructionsBtn.addEventListener('click', function(){
-        instructionsDiv.classList.toggle('hidden');
-    });
 
     // Change the gage values each time the basin value is changed
     basinName.addEventListener('change', function() {
@@ -1542,8 +1657,6 @@ function initialize(data) {
     const timeSeries = "/timeseries?";
     const timeZone = "CST6CDT";
 
-    inputsDisableAndEnable();
-
     //loadingElement.hidden = true;
 
     loadingPageData();
@@ -1573,8 +1686,12 @@ function initialize(data) {
 
     gageName.append(selectGageOption);
 
+    // Enable all elements
+    basinName.disabled = false;
+    gageName.disabled = false;
+
     // HTML button clicked
-    plotCSHBtn.addEventListener('click', function() {
+    plotCSHBtn.addEventListener('click', async function() {
 
         // Verify if the selected period is more than one year.
         if (haveOneYearOfData(beginDate.value, endDate.value) && beginDate.value < endDate.value) {
@@ -1585,7 +1702,16 @@ function initialize(data) {
                 errorMessageDiv.classList.add('hidden');
             }
 
-            loadingPageData();
+            if (haveClass(progressBarDiv, 'hidden')){
+                progressBarDiv.classList.remove('hidden');
+            }
+
+            //loadingPageData();
+
+            globalCounter = 0;
+            globalTotalCounter = 20;
+            processNextItem(globalCounter, globalTotalCounter, "Creating Plot");
+            await sleep(sleepTime);
 
             // Get Datman name ID
             let datmanName = null;
@@ -1612,6 +1738,10 @@ function initialize(data) {
             globalDatmanInflow = datmanInflowName;
             globalDatmanOutflow = datmanOutflowName;
 
+            globalCounter += 1;
+            processNextItem(globalCounter, globalTotalCounter, "Creating Plot");
+            await sleep(sleepTime);
+
             consoleLog ? console.log({globalDatman, globalDatmanInflow, globalDatmanOutflow}) : null;
 
             // Initialize variables
@@ -1619,7 +1749,7 @@ function initialize(data) {
             let endValue = formatString('end date', endDate.value); // YYYY-MM-DD
 
             // Create the URL to get the data
-            let stageUrl = createUrl(domain,timeSeries,datmanName,officeName,beginValue,endValue,timeZone);
+            let stageUrl = createUrl(domain,timeSeries,datmanName,office,beginValue,endValue,timeZone);
 
             let pageSize = 500000;
 
@@ -1627,7 +1757,11 @@ function initialize(data) {
 
             consoleLog ? console.log(stageUrl) : null;
 
-            fetchJsonFile(stageUrl, function(newData) { 
+            globalCounter += 1;
+            processNextItem(globalCounter, globalTotalCounter, "Creating Plot");
+            await sleep(sleepTime);
+
+            fetchJsonFile(stageUrl, async function(newData) { 
 
                 // Update Location Info
                 let gageInformation = null;
@@ -1641,18 +1775,26 @@ function initialize(data) {
                     };
                 });
 
+                globalCounter += 1;
+                processNextItem(globalCounter, globalTotalCounter, "Creating Plot");
+                await sleep(sleepTime);
+
                 main(newData, "stage", "plot", plotDiv, printBtnDiv, timeSerieDiv, timeSerieText);
 
 
-            }, function(){
+            }, function(error){
                 popupMessage("error", "There was an error getting the data.<br>Error: '" + error + "'");
                 popupWindowBtn.click();
+
+                if (!haveClass(progressBarDiv, 'hidden')){
+                    progressBarDiv.classList.add('hidden');
+                }
             });
 
             // If there is Inflow Data
             if (globalDatmanInflow !== null){
 
-                let stageUrl2 = createUrl(domain,timeSeries,datmanInflowName,officeName,beginValue,endValue,timeZone);
+                let stageUrl2 = createUrl(domain,timeSeries,datmanInflowName,office,beginValue,endValue,timeZone);
                 stageUrl2 = stageUrl2 + `&page-size=${pageSize}`;
 
                 fetchJsonFile(stageUrl2, function(newData) { 
@@ -1669,16 +1811,17 @@ function initialize(data) {
             // If there is Outflow Data
             if (globalDatmanOutflow !== null){
 
-                let stageUrl3 = createUrl(domain,timeSeries,datmanOutflowName,officeName,beginValue,endValue,timeZone);
+                let stageUrl3 = createUrl(domain,timeSeries,datmanOutflowName,office,beginValue,endValue,timeZone);
                 stageUrl3 = stageUrl3 + `&page-size=${pageSize}`;
 
                 fetchJsonFile(stageUrl3, function(newData) { 
 
                     main(newData, "outflow", "plot-3", plotDiv3, printBtn3Div, outflowTimeSerieDiv, outflowTimeSerieText);
 
-                }, function(){
+                }, function(error){
                     popupMessage("error", "There was an error getting the data.<br>Error: '" + error + "'");
                     popupWindowBtn.click();
+
                 });
 
             }
@@ -1691,9 +1834,8 @@ function initialize(data) {
 
         
     });   
-    
-    
-    
+        
+        
 }
 
 // Main function
@@ -1710,6 +1852,10 @@ async function main(data, dataType, plotID, plotDIV, plotPrintBtnDIV, plotTimeSe
     consoleLog ? console.log("Whole Period Data: ", wholePeriodList) : null;
     consoleLog ? console.log("Total Data: ", totalData) : null;
 
+    globalCounter += 1;
+    processNextItem(globalCounter, globalTotalCounter, "Creating Plot");
+    await sleep(sleepTime);
+
     // Separete data between mean, max and min
     let meanData = totalData[0];
     let minData = totalData[1];
@@ -1722,6 +1868,10 @@ async function main(data, dataType, plotID, plotDIV, plotPrintBtnDIV, plotTimeSe
     if (userSpecificCheckbox.checked){
         timeWindow = `${beginDate.value.split('-')[0]} - ${endDate.value.split('-')[0]}`;
     }
+
+    globalCounter += 1;
+    processNextItem(globalCounter, globalTotalCounter, "Creating Plot");
+    await sleep(sleepTime);
 
     // Get all the years input
     let year1Input = year1SelectBox.value === "NONE" ? null : parseInt(year1SelectBox.value);
@@ -1750,6 +1900,10 @@ async function main(data, dataType, plotID, plotDIV, plotPrintBtnDIV, plotTimeSe
         {year: year4Input, color: year4Color}, {year: year5Input, color: year5Color}, {year: year6Input, color: year6Color}
     ];
 
+    globalCounter += 1;
+    processNextItem(globalCounter, globalTotalCounter, "Creating Plot");
+    await sleep(sleepTime);
+
     // If year is not in the time window trow an error
     let stopFunction = false;
     yearsInputList.forEach(element => {
@@ -1767,6 +1921,10 @@ async function main(data, dataType, plotID, plotDIV, plotPrintBtnDIV, plotTimeSe
         return
     }
 
+    globalCounter += 1;
+    processNextItem(globalCounter, globalTotalCounter, "Creating Plot");
+    await sleep(sleepTime);
+
     let actualYearInput = yearsInputList.filter(x => x.year !== null);
 
     // Generate dates for 2024 which is a leap year
@@ -1780,13 +1938,17 @@ async function main(data, dataType, plotID, plotDIV, plotPrintBtnDIV, plotTimeSe
     // List for the plotting
     let plotData = [];
 
+    globalCounter += 1;
+    processNextItem(globalCounter, globalTotalCounter, "Creating Plot");
+    await sleep(sleepTime);
+
     // Generate the statistic series for plotting
     //let meanPlotSerie = createMeanSerie(meanData, xAxisValues, "Mean Test", "lines"); // Mean Serie
 
     if (!noStatsCheckbox.checked && statisticMaxMinCheckbox.checked){
 
         let maxPlotSerie = createMinMaxSerie(maxData, xAxisValues, `Max (${timeWindow})`, "lines", false, minMaxColor, false); // Maximum Serie
-        let minPlotSerie = createMinMaxSerie(minData, xAxisValues, `Min (${timeWindow})`, "lines", true, minMaxColor, false); // Minimum Serie
+        let minPlotSerie = createMinMaxSerie(minData, xAxisValues, `Min (${timeWindow})`, "lines", minMaxShaderCheckbox.checked, minMaxColor, false); // Minimum Serie
         let dummyMinMax = dummySerie(`Max & Min (${timeWindow})     `, 'group1', minMaxColor, true);
 
         plotData = [maxPlotSerie, minPlotSerie, dummyMinMax[0], dummyMinMax[1]];
@@ -1814,6 +1976,10 @@ async function main(data, dataType, plotID, plotDIV, plotPrintBtnDIV, plotTimeSe
 
     };
 
+    globalCounter += 1;
+    processNextItem(globalCounter, globalTotalCounter, "Creating Plot");
+    await sleep(sleepTime);
+
     // Generate years plot for each year
     actualYearInput.forEach(year => {
         plotData.push(createYearSerie(wholePeriodList, xAxisValues, year.year, `Year ${year.year}      `, 'lines', year.color));
@@ -1821,29 +1987,45 @@ async function main(data, dataType, plotID, plotDIV, plotPrintBtnDIV, plotTimeSe
 
     consoleLog ? console.log("Plot Data: ", plotData) : null;
 
+    globalCounter += 1;
+    processNextItem(globalCounter, globalTotalCounter, "Creating Plot");
+    await sleep(sleepTime);
+
     // Generate the years plot
     //let year1PlotSerie = createYearSerie(wholePeriodList, xAxisValues, leapYear, `Year ${leapYear}`, 'lines');
 
     const levelIdEffectiveDate = "2024-01-01T08:00:00"; 
-    const officeName = "mvs";
+    const office = "mvs";
     const cda = "internal";
 
+    globalCounter += 1;
+    processNextItem(globalCounter, globalTotalCounter, "Creating Plot");
+    await sleep(sleepTime);
+
     let setBaseUrl = cda === "internal"
-            ? `https://wm.${officeName.toLowerCase()}.ds.usace.army.mil:8243/${officeName.toLowerCase()}-data/`
+            ? `https://wm.${office.toLowerCase()}.ds.usace.army.mil:8243/${office.toLowerCase()}-data/`
             : `https://cwms-data.usace.army.mil/cwms-data/`;
 
     const levelIdFlood = `${gageName.value}.Stage.Inst.0.Flood`;
-    const FloodApiUrl = `${setBaseUrl}levels/${levelIdFlood}?office=${officeName.toLowerCase()}&effective-date=${levelIdEffectiveDate}&unit=ft`;
+    const FloodApiUrl = `${setBaseUrl}levels/${levelIdFlood}?office=${office.toLowerCase()}&effective-date=${levelIdEffectiveDate}&unit=ft`;
 
     const levelIdLWRP = `${gageName.value}.Stage.Inst.0.LWRP`;
-    const WLRPApiUrl = `${setBaseUrl}levels/${levelIdLWRP}?office=${officeName.toLowerCase()}&effective-date=${levelIdEffectiveDate}&unit=ft`;
+    const WLRPApiUrl = `${setBaseUrl}levels/${levelIdLWRP}?office=${office.toLowerCase()}&effective-date=${levelIdEffectiveDate}&unit=ft`;
 
     const levelIdNgvd29 = `${gageName.value}.Height.Inst.0.NGVD29`;
-    const NGVD29ApiUrl = `${setBaseUrl}levels/${levelIdNgvd29}?office=${officeName.toLowerCase()}&effective-date=${levelIdEffectiveDate}&unit=ft`;
+    const NGVD29ApiUrl = `${setBaseUrl}levels/${levelIdNgvd29}?office=${office.toLowerCase()}&effective-date=${levelIdEffectiveDate}&unit=ft`;
+
+    globalCounter += 1;
+    processNextItem(globalCounter, globalTotalCounter, "Creating Plot");
+    await sleep(sleepTime);
 
     let floodStageNum = await awaitFetchData(FloodApiUrl);
     let lwrpStageNum = await awaitFetchData(WLRPApiUrl);
     let ngvd29StageNum = await awaitFetchData(NGVD29ApiUrl);
+
+    globalCounter += 1;
+    processNextItem(globalCounter, globalTotalCounter, "Creating Plot");
+    await sleep(sleepTime);
 
     if (floodStageNum === 909 || floodStageNum === null){
 
@@ -1862,6 +2044,10 @@ async function main(data, dataType, plotID, plotDIV, plotPrintBtnDIV, plotTimeSe
 
     }
 
+    globalCounter += 1;
+    processNextItem(globalCounter, globalTotalCounter, "Creating Plot");
+    await sleep(sleepTime);
+
     if (lwrpStageNum === 909 || lwrpStageNum === null){
 
         lwrpStageText.innerHTML = "Plot LWRP  -->  <strong>No LWRP Data</strong>";
@@ -1879,6 +2065,10 @@ async function main(data, dataType, plotID, plotDIV, plotPrintBtnDIV, plotTimeSe
 
     }
 
+    globalCounter += 1;
+    processNextItem(globalCounter, globalTotalCounter, "Creating Plot");
+    await sleep(sleepTime);
+
     // ADD the LWRP and FLOOD STAGE to the plot
     if (floodStageCheckbox.checked && floodStageNum !== null && floodStageNum !== 909){
         plotData.push(createSingleNumberSerie(floodStageNum, xAxisValues, "Flood Stage    ", "lines", floodStageColor, 0));
@@ -1887,6 +2077,10 @@ async function main(data, dataType, plotID, plotDIV, plotPrintBtnDIV, plotTimeSe
     if (lwrpCheckbox.checked && lwrpStageNum !== null && lwrpStageNum !== 909){
         plotData.push(createSingleNumberSerie(lwrpStageNum, xAxisValues, "LWRP    ", "lines", lwrpColor, 1));
     }
+
+    globalCounter += 1;
+    processNextItem(globalCounter, globalTotalCounter, "Creating Plot");
+    await sleep(sleepTime);
 
     let offset = 5;
     let maxValueList = [];
@@ -1913,7 +2107,15 @@ async function main(data, dataType, plotID, plotDIV, plotPrintBtnDIV, plotTimeSe
         title += " (Outflow)";
     }
 
+    globalCounter += 1;
+    processNextItem(globalCounter, globalTotalCounter, "Creating Plot");
+    await sleep(sleepTime);
+
     createPlot(plotData, title, minValue + offset, maxValue + offset, plotID, yAxisLabel);
+
+    globalCounter += 1;
+    processNextItem(globalCounter, globalTotalCounter, "Creating Plot");
+    await sleep(sleepTime);
 
     plotDIV.classList.remove('hidden');
 
@@ -1933,8 +2135,16 @@ async function main(data, dataType, plotID, plotDIV, plotPrintBtnDIV, plotTimeSe
         plotTimeSerieDIV.classList.remove('hidden')
     }
 
+    if (!haveClass(progressBarDiv, 'hidden')){
+        progressBarDiv.classList.add('hidden');
+    }
+
+    globalCounter += 1;
+    processNextItem(globalCounter, globalTotalCounter, "Creating Plot");
+    await sleep(sleepTime);
+
     // Change button text
-    loadingPageData();
+    //loadingPageData();
 
 }
 
@@ -1959,6 +2169,29 @@ async function awaitFetchData(url){
         return null
     }
 
+}
+
+async function sleep(ms){
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function processNextItem(currentItem, totalItems, text) {
+
+    if (currentItem < totalItems) {
+        // Simulate processing an item (replace with actual logic)
+        console.log(`Processing item ${currentItem + 1} of ${totalItems}`);
+
+        // Update progress
+        let progressPercent = ((currentItem + 1) / totalItems) * 100;
+        progressBar.style.width = `${progressPercent}%`;
+        progressBar.textContent = `${Math.round(progressPercent)}%`;
+
+        progressBarText.innerHTML = `${text}...`;
+        //progressBarText.innerHTML = `${text}... (${currentItem + 1}/${totalItems})`;
+
+    } else {
+        console.log("Processing complete!");
+    }
 }
 
 // Create plot Function

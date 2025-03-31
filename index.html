@@ -7,17 +7,17 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>CSH - Comparative Stage Hydrograph</title> <!-- DISTRICT Home Page -->
         <meta name="Description" content="U.S. Army Corps of Engineers DISTRICT HERE Home Page" />
-        <link rel="stylesheet" href="css/body.css" />
-        <link rel="stylesheet" href="css/breadcrumbs.css" />
-        <link rel="stylesheet" href="css/jumpMenu.css" />
-        <script type="text/javascript" src="js/main.js"></script>
+        <link rel="stylesheet" href="./css/body.css" />
+        <link rel="stylesheet" href="./css/breadcrumbs.css" />
+        <link rel="stylesheet" href="./css/jumpMenu.css" />
+        <script type="text/javascript" src="./js/main.js"></script>
         <!-- Add sidebar.css IF NOT LOAD SIDEBAR TEMPLATE -->
-        <link rel="stylesheet" href="css/sidebar.css"/>
+        <link rel="stylesheet" href="../../css/sidebar.css"/>
         <!-- Add content window style IF NOT LOAD SIDEBAR TEMPLATE -->
-        <link rel="stylesheet" href="css/styles.css">
-        <link rel="stylesheet" href="css/popup.css">
-        <link rel="stylesheet" href="css/responsive.css">
-        <link rel="stylesheet" href="css/loadingCircle.css">
+        <link rel="stylesheet" href="./css/styles.css">
+        <link rel="stylesheet" href="./css/popup.css">
+        <link rel="stylesheet" href="./css/responsive.css">
+        <link rel="stylesheet" href="./css/loadingCircle.css">
     </head>
     <body>
         <div id="page-container">
@@ -59,6 +59,10 @@
                                                 <div class="input-container">
                                                     <div class="inputs">
                                                         <div class="data-info">
+                                                            <div class="basin">
+                                                                <label>Office:</label>
+                                                                <select name="office" id="officeCombobox"></select>
+                                                            </div>
                                                             <div class="basin">
                                                                 <label>Basin:</label>
                                                                 <select name="basin" id="basinCombobox"></select>
@@ -211,6 +215,10 @@
                                                             <input type="checkbox" name="max-min" id="max-min-checkbox" checked>
                                                             <label>Plot Stat MIN & MAX</label>
                                                             <input type="color" name="min-max-color" id="min-max-color" value="#3A86FF">
+                                                            <div class="sub-div">
+                                                                <input type="checkbox" name="shade" id="shade-checkbox">
+                                                                <label>Fill Shader</label>
+                                                            </div>
                                                         </div>
 
                                                         <div>
@@ -276,8 +284,15 @@
                                                     <span style="--i: 18;"></span>
                                                     <span style="--i: 19;"></span>
                                                     <span style="--i: 20;"></span>
-                                                    <h2 class="text-string">Loading Data...<br><b>If this takes more than 15 seconds, reload the page.</b></h2>
+                                                    <h2 class="text-string">Loading Data<br><b>If this takes more than 15 seconds, reload the page.</b></h2>
                                                 </div>
+                                            </div>
+
+                                            <div id="progress-bar-div" class="hidden">
+                                                <div id="progress-bar">
+                                                    <div id="progress"></div>
+                                                </div>
+                                                <label class="progress-bar-text">Progress Bar... (50%)</label>
                                             </div>
 
                                             <div id="print-btn-div" class="hidden">
@@ -311,18 +326,18 @@
                                             </div>
                                             
                                             <!-- <script src="https://cdn.sheetjs.com/xlsx-0.18.2/package/dist/xlsx.full.min.js"></script> -->
-                                            <script src="js/libraries/xlsx.full.min.js"></script>
+                                            <script src="./js/libraries/xlsx.full.min.js"></script>
 
                                             <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script> -->
-                                            <script src="js/libraries/jspdf.umd.min.js"></script>
+                                            <script src="./js/libraries/jspdf.umd.min.js"></script>
 
                                             <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script> -->
-                                            <script src="js/libraries/jspdf.plugin.autotable.min.js"></script>
+                                            <script src="./js/libraries/jspdf.plugin.autotable.min.js"></script>
 
                                             <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script> -->
-                                            <script src="js/libraries/html2canvas.min.js"></script>
+                                            <script src="./js/libraries"></script>
 
-                                            <script type="module" src="js/script.js"></script>
+                                            <script type="module" src="./js/script.js"></script>
                                         </div>
 
                                         
@@ -357,7 +372,7 @@
         </div>
 
         <div id="popup-window">
-            <img src="images/usace_logo.png" alt="usace-logo">
+            <img src="../images/usace_logo.png" alt="usace-logo">
             <h2 id="popup-title">This is the POPUP window Title.</h2>
             <p id="popup-message">Lorem ipsum dolor sit amet consectetur adipisicing elit. Maxime delectus quasi alias dolore maiores enim nulla exercitationem quos, minus non?</p>
             <a href="#" id="popup-button">Close</a>
@@ -366,15 +381,15 @@
         <footer id="footer">
             <!--Footer content populated here by script tag at end of body -->
         </footer>
-        <script src="js/libraries/jQuery-3.3.6.min.js"></script>
+        <script src="../../js/libraries/jQuery-3.3.6.min.js"></script>
         <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
         <script defer>
             // When the document has loaded pull in the page header and footer skins
             $(document).ready(function () {
                 // Change the v= to a different number to force clearing the cached version on the client browser
-                $('#header').load('templates/DISTRICT.header.html?v=1');
-                // $('#sidebar').load('templates/DISTRICT.sidebar.html?v=1');
-                $('#footer').load('templates/DISTRICT.footer.html?v=1');
+                $('#header').load('../../templates/DISTRICT.header.html?v=1');
+                // $('#sidebar').load('../../templates/DISTRICT.sidebar.html?v=1');
+                $('#footer').load('../../templates/DISTRICT.footer.html?v=1');
             })
         </script>
     </body>
